@@ -13,7 +13,7 @@ gem install ./jekyll-rdf-0.0.0.gem
 ```
 
 # Usage
-First, you need a jekyll page. In order to create one, just do:
+First, you need a jekyll page. In order to  just do:
 ```
 jekyll new my_page
 cd my_page
@@ -52,5 +52,6 @@ Everytime the tests are executed, the Jekyll page inside of `test/source` gets p
 cd test/source/_site
 python -m SimpleHTTPServer 8000
 ```
-blablabla
-:D
+
+hier steht etwas anderes
+
