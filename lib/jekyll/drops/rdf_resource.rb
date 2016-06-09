@@ -1,5 +1,6 @@
-##MIT License
-#
+##
+# MIT License
+# 
 # Copyright (c) 2016 Elias Saalmann, Christian Frommert, Simon Jakobi,
 # Arne Jonas Präger, Maxi Bornmann, Georg Hackel, Eric Füg
 #
