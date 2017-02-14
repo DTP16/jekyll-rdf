@@ -40,14 +40,25 @@ module Jekyll
     def sparql_query(input, query)
       return input unless input.is_a?(Jekyll::Drops::RdfResource)
       query.gsub!('?resourceUri', "<#{input.term.to_s}>")
+      if(!input.page.data["rdf_prefixes"].nil?)
+        query = query.prepend(" ").prepend(input.page.data["rdf_prefixes"])
+      end
       begin
+        input.site.data['sparql']
         result = input.site.data['sparql'].query(query).map do |solution|
           hsh = solution.to_hash
           hsh.update(hsh){ |k,v| Jekyll::Drops::RdfTerm.build_term_drop(v, input.graph, input.site) }
           hsh.collect{|k,v| [k.to_s, v]}.to_h
         end
         return result
+      rescue SPARQL::Client::ClientError => ce
+        Jekyll.logger.error("client error experienced: \n #{query} \n Error Message: #{ce.message}")
+      rescue SPARQL::MalformedQuery => mq
+        Jekyll.logger.error("malformed query found: \n #{query} \n Error Message: #{mq.message}")
+      rescue Exception => e
+        Jekyll.logger.error("unknown Exception of class: #{e.class} in sparql_query \n Query: #{query} \nMessage: #{e.message}")
       end
+      return []
     end
 
   end
