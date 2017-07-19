@@ -1,6 +1,5 @@
 ---
 layout: default_stripped
-rdf_prefix_path: simpsons.pref
 ---
 
 <div class="home">
@@ -16,7 +15,7 @@ rdf_prefix_path: simpsons.pref
       <tr>
         <td>Sisters</td>
         <td>
-          {% assign resultset = page.rdf | rdf_property: '<http://www.ifi.uio.no/INF3580/family#hasSister>', nil, true %}
+          {% assign resultset = page.rdf | rdf_property_list: '<http://www.ifi.uio.no/INF3580/family#hasSister>' %}
           {% for result in resultset %}
             <ul>{{ result }}</ul>
           {% endfor %}
@@ -34,15 +33,15 @@ rdf_prefix_path: simpsons.pref
   </table>
 
   <p>
-    <h3>Statements in which {{ page.rdf | rdf_property: 'foaf:name' }} ({{ page.rdf.iri }}) occurs as subject:</h3>
+    <h3>Statements in which {{ page.rdf.foafName }} ({{ page.rdf.iri }}) occurs as subject:</h3>
     {% include statements_table.html collection=page.rdf.statements_as_subject %}
   </p>
   <p>
-    <h3>Statements in which {{ page.rdf | rdf_property: 'foaf:name' }} ({{ page.rdf.iri }}) occurs as predicate:</h3>
+    <h3>Statements in which {{ page.rdf.foafName }} ({{ page.rdf.iri }}) occurs as predicate:</h3>
     {% include statements_table.html collection=page.rdf.statements_as_predicate %}
   </p>
   <p>
-    <h3>Statements in which {{ page.rdf | rdf_property: 'foaf:name' }} ({{ page.rdf.iri }}) occurs as object:</h3>
+    <h3>Statements in which {{ page.rdf.foafName }} ({{ page.rdf.iri }}) occurs as object:</h3>
     {% include statements_table.html collection=page.rdf.statements_as_object %}
   </p>
   <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | prepend: site.baseurl }}">via RSS</a></p>

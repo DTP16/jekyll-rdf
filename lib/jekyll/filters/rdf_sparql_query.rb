@@ -40,14 +40,24 @@ module Jekyll
     def sparql_query(input, query)
       return input unless input.is_a?(Jekyll::Drops::RdfResource)
       query.gsub!('?resourceUri', "<#{input.term.to_s}>")
+      if(!input.page.data["rdf_prefixes"].nil?)
+        query = query.prepend(" ").prepend(input.page.data["rdf_prefixes"])
+      end
       begin
-        result = input.site.data['sparql'].query(query).map do |solution|
-          hsh = solution.to_hash
-          hsh.update(hsh){ |k,v| Jekyll::Drops::RdfTerm.build_term_drop(v, input.graph, input.site) }
+        result = input.sparql.query(query).map do |solution|
+          hsh = solution.to_h
+          hsh.update(hsh){ |k,v| Jekyll::Drops::RdfTerm.build_term_drop(v, input.sparql, input.site).add_necessities(input.site, input.page)}
           hsh.collect{|k,v| [k.to_s, v]}.to_h
         end
         return result
+      rescue SPARQL::Client::ClientError => ce
+        Jekyll.logger.error("client error experienced: \n #{query} \n Error Message: #{ce.message}")
+      rescue SPARQL::MalformedQuery => mq
+        Jekyll.logger.error("malformed query found: \n #{query} \n Error Message: #{mq.message}")
+      rescue Exception => e
+        Jekyll.logger.error("unknown Exception of class: #{e.class} in sparql_query \n Query: #{query} \nMessage: #{e.message} \nTrace #{e.backtrace.drop(1).map{|s| "\t#{s}"}.join("\n")}")
       end
+      return []
     end
 
   end

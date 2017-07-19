@@ -1,6 +1,6 @@
 ##
 # MIT License
-# 
+#
 # Copyright (c) 2016 Elias Saalmann, Christian Frommert, Simon Jakobi,
 # Arne Jonas Präger, Maxi Bornmann, Georg Hackel, Eric Füg
 #
@@ -42,6 +42,43 @@ module Jekyll #:nodoc:
       attr_accessor :page
 
       ##
+      # The relative path to the location on the disk where this resource is rendered to
+      #
+      attr_reader :render_path
+
+      ##
+      #
+      #
+      attr_accessor :subResources
+
+      ##
+      #
+      #
+      def initialize(term, sparql, site = nil, page = nil)
+        super(term, sparql)
+        if(site.is_a?(Jekyll::Site))
+          @site = site
+        end
+        if(page.is_a?(Jekyll::Page))
+          @page = page
+        end
+      end
+
+      def add_necessities(site, page)
+        if(site.is_a?(Jekyll::Site))
+          @site ||= site
+        end
+        if(page.is_a?(Jekyll::Page))
+          @page ||= page
+        end
+        return self
+      end
+
+      def ready?
+        return (@site.is_a?(Jekyll::Site)||@page.is_a?(Jekyll::Page))
+      end
+
+      ##
       # Return a list of Jekyll::Drops::RdfStatements whose subject, predicate or object is the RDF resource represented by the receiver
       #
       def statements
@@ -76,52 +113,20 @@ module Jekyll #:nodoc:
         @filename ||= generate_file_name(domain_name, baseurl)
       end
 
-      ##
-      # types finds the type and superclasses of the resource
-      #
-      def types
-        @types ||= begin
-          types = [ term.to_s ]
+      def direct_classes
+        @direct_classes ||= begin
+          classes=[]
           selection = statements_as(:subject).select{ |s| s.predicate.term.to_s=="http://www.w3.org/1999/02/22-rdf-syntax-ns#type" }
           unless selection.empty?
-            t = selection.first
-            if selection.count > 1
-              Jekyll.logger.warn "Resource #{name} has multiple RDFS types. Will use #{t.object.term.to_s} for template mapping.  "
-            end
-            types << t.object.term.to_s
-            t = t.object
-            s = t.super_class
-            while s
-              types << s.term.to_s
-              s = s.super_class
-            end
+            selection.each{|s| classes << s.object.term.to_s}
           end
-          types
+          classes.uniq!
+          classes
         end
       end
 
-      ##
-      # Return the first super class resource of the receiver or nil, if no super class resource can be found
-      #
-      def super_class
-        selection = statements_as(:subject).select{ |s| s.predicate.term.to_s=="http://www.w3.org/2000/01/rdf-schema#subClassOf" }
-        unless selection.empty?
-          super_class = selection.first
-          if selection.count > 1
-            Jekyll.logger.warn "Type #{name} has multiple RDFS super classes. Will use #{super_class.object.term.to_s} for template mapping.  "
-          end
-          super_class.object
-        end
-      end
-
-      ##
-      # Return a user-facing string representing this RdfResource
-      #
-      def name
-        @name ||= begin
-          n = statements_as(:subject).find{ |s| s.predicate.term.to_s=="http://xmlns.com/foaf/0.1/name" }
-          n ? n.object.name : term.to_s
-        end
+      def iri
+        term.to_s
       end
 
       ##
@@ -142,9 +147,61 @@ module Jekyll #:nodoc:
       #     Return a list of Jekyll::Drops::RdfStatements whose object is the RDF resource represented by the receiver
       #
       def statements_as(role)
-        graph.query(role.to_sym => term).map do |statement|
-          RdfStatement.new(statement, graph, site)
+        if(!term.to_s[0..1].eql? "_:")
+          input_uri = "<#{term.to_s}>"
+        elsif(:predicate.eql? role)
+          return []
+        else
+          input_uri = term.to_s
         end
+
+        case role
+          when :subject
+            query = "SELECT ?p ?o ?dt ?lit ?lang WHERE{ #{input_uri} ?p ?o BIND(datatype(?o) AS ?dt) BIND(isLiteral(?o) AS ?lit) BIND(lang(?o) AS ?lang)}"
+            sparql.query(query).map do |solution|
+              check = check_solution(solution)
+              create_statement(term.to_s, solution.p, solution.o, solution.lit, check[:lang], check[:data_type])
+            end
+          when :predicate
+            query = "SELECT ?s ?o ?dt ?lit ?lang WHERE{ ?s #{input_uri} ?o BIND(datatype(?o) AS ?dt) BIND(isLiteral(?o) AS ?lit) BIND(lang(?o) AS ?lang)}"
+            sparql.query(query).map do |solution|
+              check = check_solution(solution)
+              create_statement(solution.s, term.to_s, solution.o, solution.lit, check[:lang], check[:data_type])
+            end
+          when :object
+            query = "SELECT ?s ?p WHERE{ ?s ?p #{input_uri}}"
+            sparql.query(query).map do |solution|
+              create_statement( solution.s, solution.p, term.to_s)
+            end
+          else
+            Jekyll.logger.error "Not existing role found in #{term.to_s}"
+            return
+        end
+      end
+
+      #checks if a query solution contains a language or type tag and returns those in a hash
+      private
+      def check_solution(solution)
+        result = {:lang => nil, :data_type => nil}
+        if((solution.bound?(:lang)) && (!solution.lang.to_s.eql?("")))
+          result[:lang] = solution.lang.to_s.to_sym
+        end
+        if(solution.bound? :dt)
+          result[:data_type] = solution.dt
+        end
+        return result
+      end
+
+      private
+      def create_statement(subject_string, predicate_string, object_string, is_lit = nil, lang = nil, data_type = nil)
+        subject = RDF::URI(subject_string)
+        predicate = RDF::URI(predicate_string)
+        if(!is_lit.nil?&&is_lit.true?)
+          object = RDF::Literal(object_string, language: lang, datatype: RDF::URI(data_type))
+        else
+          object = RDF::URI(object_string)
+        end
+        return RdfStatement.new(RDF::Statement( subject, predicate, object), @sparql, @site)
       end
 
       private
@@ -153,38 +210,57 @@ module Jekyll #:nodoc:
       # * +domain_name+
       #
       def generate_file_name(domain_name, baseurl)
-        begin
-          uri = URI::split(term.to_s)
-          file_name = "rdfsites/" # in this directory all external RDF sites are stored
-          if (uri[2] == domain_name)
-            file_name = ""
-            uri[0] = nil
-            uri[2] = nil
-            uri[5] = uri[5].sub(baseurl,'')
-          end
-          (0..8).each do |i|
-            if uri[i]
-              case i
-              when 2
-                file_name += "#{uri[i].gsub('.','/')}/"
-              when 8
-                file_name = file_name[0..-2]
-                file_name += "##{uri[i]}"
-              else
-                file_name += "#{uri[i]}/"
+        if(term.to_s[0..1].eql? "_:")
+          file_name = "rdfsites/blanknode/#{term.to_s}/"
+        else
+          begin
+            uri = Addressable::URI.parse(term.to_s).to_hash
+            file_name = "rdfsites/" # in this directory all external RDF sites are stored
+            if (uri[:host] == domain_name)
+              file_name = ""
+              uri[:scheme] = nil
+              uri[:host] = nil
+              if(uri[:path].length > baseurl.length)
+                if(uri[:path][0..(baseurl.length)].eql? (baseurl + "/"))
+                  uri[:path] = uri[:path][(baseurl.length)..-1]
+                end
+              elsif(uri[:path].eql?(baseurl))
+                uri[:path] = nil
               end
             end
+            key_field = [:scheme, :userinfo, :host, :port, :registry, :path, :opaque, :query, :fragment]
+            key_field.each do |index|
+              if !(uri[index].nil?)
+                case index
+                when :path
+                  file_name += "#{uri[index][1..-1]}/"
+                when :fragment
+                  file_name += "#/#{uri[index]}"
+                else
+                  file_name += "#{uri[index]}/"
+                end
+              end
+            end
+            unless file_name[-1] == '/'
+              file_name += '/'
+            end
+          rescue URI::InvalidURIError => x #unclean coding: blanknodes are recognized through errors
+            file_name = "invalids/#{term.to_s}"
+            Jekyll.logger.error("Invalid resource found: #{term.to_s} is not a proper uri")
+            Jekyll.logger.error("URI parser exited with message: #{x.message}")
           end
-          unless file_name[-1] == '/'
-            file_name += '/'
-          end
-          file_name += 'index.html'
-          file_name.gsub('//','/')
-        rescue URI::InvalidURIError
-          file_name = "rdfsites/blanknode/#{term.to_s}/index.html"
         end
+        file_name = file_name.gsub('_','_u')
+        file_name = file_name.gsub('//','/') # needs a better regex to include /// ////...
+        file_name = file_name.gsub(':','_D')
+        file_name = file_name.strip
+        if(file_name[-2..-1] == "#/")
+          file_name = file_name[0..-3]
+        end
+        file_name += 'index.html'
+        @render_path = file_name
+        file_name
       end
-
     end
   end
 end

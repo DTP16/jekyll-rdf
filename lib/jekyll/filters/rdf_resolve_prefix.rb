@@ -24,35 +24,25 @@
 #
 
 module Jekyll
-
-  ##
-  # Internal module to hold the method #rdf_property
-  #
-  module RdfPropertyList
-
-    ##
-    # Computes all objects for which statements exist containing the given subject and predicate and returns an Array of them
-    #
-    # * +input+ - is the subject of the statements to be matched
-    # * +predicate+ - is the predicate of the statements to be matched
-    # * +lang+ - (optional) preferred language of the returned objects. If 'cfg' is specified the preferred language is provides by the site configuration _config.yml
-    #
-    def rdf_property_list(input, predicate, lang = nil)
-      return input unless input.is_a?(Jekyll::Drops::RdfResource)
-      begin
-        result = input.page.data['rdf'].statements_as_subject.select{ |s| s.predicate.term.to_s == predicate } # select all matching statements with given predicate
-        if lang != nil
-          if lang == 'cfg'
-            lang = input.site.config['jekyll_rdf']['language']
-          end
-          result = result.select{ |s| s.object.term.language == lang.to_sym } # select all statements with matching language
+  module RdfPrefixResolver
+    private
+    def rdf_resolve_prefix(input, predicate)
+      if(predicate[0] == "<" && predicate[-1] == ">")
+        return predicate[1..-2]
+      end
+      arr=predicate.split(":",2)  #bad regex, would also devide 'http://example....' into 'http' and '//example....',even though it is already a complete URI; if 'PREFIX http: <http://...> is defined, 'http' in 'http://example....' could be mistaken for a prefix
+      if((arr[1].include? (":")) || (arr[1][0..1].eql?("//")))
+        raise UnMarkedUri.new(predicate, input.page.data['template'])
+      end
+      if(!input.page.data["rdf_prefixes"].nil?)
+        if(!input.page.data["rdf_prefix_map"][arr[0]].nil?)
+          return arr[1].prepend(input.page.data["rdf_prefix_map"][arr[0]])
+        else
+          raise NoPrefixMapped.new(predicate, input.page.data['template'], arr[0])
         end
-        return unless result
-        result.map{|p| p.object.name}
+      else
+        raise NoPrefixesDefined.new(predicate, input.page.data['template'])
       end
     end
-
   end
 end
-
-Liquid::Template.register_filter(Jekyll::RdfPropertyList)

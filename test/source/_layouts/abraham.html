@@ -1,12 +1,13 @@
 ---
-layout: default
+rdf_prefix_path: simpsons.pref
+layout: abraham_outer_layout
 ---
 
 <div class="home">
 
-  <h1 class="page-heading"><b>Special abraham page</b></h1>
+  <h1 class="page-heading"><b>Abrahams super custom entry page</b></h1>
 
-  <img alt="Abe Simpson.png" src="//upload.wikimedia.org/wikipedia/en/3/3e/Abe_Simpson.png" width="167" height="300" data-file-width="167" data-file-height="300">
+  <img alt="Abe Simpson.png" src="http://upload.wikimedia.org/wikipedia/en/3/3e/Abe_Simpson.png" width="167" height="300" data-file-width="167" data-file-height="300">
 
   {% assign query = 'SELECT ?sub ?pre WHERE { ?sub ?pre ?resourceUri }' %}
   {% assign resultset = page.rdf | sparql_query: query %}
@@ -18,17 +19,17 @@ layout: default
     </tr>
   {% endfor %}
   </table>
-  
+
   <p>
-    <h3>Statements in which {{ page.rdf.name }} occurs as subject:</h3>
+    <h3>Statements in which {{ page.rdf | rdf_property: 'foaf:name' }} ({{ page.rdf.iri }}) occurs as subject:</h3>
     {% include statements_table.html collection=page.rdf.statements_as_subject %}
   </p>
   <p>
-    <h3>Statements in which {{ page.rdf.name }} occurs as predicate:</h3>
+    <h3>Statements in which {{ page.rdf | rdf_property: 'foaf:name' }} ({{ page.rdf.iri }}) occurs as predicate:</h3>
     {% include statements_table.html collection=page.rdf.statements_as_predicate %}
   </p>
   <p>
-    <h3>Statements in which {{ page.rdf.name }} occurs as object:</h3>
+    <h3>Statements in which {{ page.rdf | rdf_property: 'foaf:name' }} ({{ page.rdf.iri }}) occurs as object:</h3>
     {% include statements_table.html collection=page.rdf.statements_as_object %}
   </p>
   <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | prepend: site.baseurl }}">via RSS</a></p>

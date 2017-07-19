@@ -29,6 +29,8 @@ module Jekyll
   # JekyllRdf::RdfPageData creates pages for each RDF resource using a given template
   #
   class RdfPageData < Jekyll::Page
+    include Jekyll::RdfPageHelper
+    attr_reader :complete
 
     ##
     # initialize initializes the page
@@ -37,24 +39,29 @@ module Jekyll
     # * +resource+ - The RDF resource for which the page is rendered
     # * +mapper+ - The layout-mapping
     #
-    def initialize(site, base, resource, mapper)
+    def initialize(site, base, resource, mapper, config)
       @site = site
       @base = base
       @dir = ""
-      @name = resource.filename(URI::split(site.config['url'])[2], site.config['baseurl'])
+      @name = resource.filename(URI::split(config['url'])[2], config['baseurl'])
+      @resource = resource
+      if(base.nil?)
+        Jekyll.logger.warn "Resource #{resource} not rendered: no base url found."
+        @complete = false   #TODO: set a return here and adapt the test for displaying a warning for rendering a page without template
+      else
+        @complete = true
+      end
       self.process(@name)
+      map_template(resource, mapper)
 
-      template = mapper.map(resource)
-      self.read_yaml(File.join(base, '_layouts'), template)
-
-      self.data['title'] = resource.name
-      self.data['rdf'] = resource
-
+      if(!@complete)
+        return        #return if something went wrong
+      end
+      load_data(site)
+      load_prefixes()
       resource.page = self
       resource.site = site
       site.data['resources'] << resource
     end
-
   end
-
 end

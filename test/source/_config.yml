@@ -12,8 +12,8 @@ description: > # this means to ignore newlines until "baseurl:"
   Write an awesome description for your new site here. You can edit this
   line in _config.yml. It will appear in your document head meta (for
   Google search results) and in your feed.xml site description.
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "http://yourdomain.com" # the base hostname & protocol for your site
+baseurl: "/INF3580" # the subpath of your site, e.g. /blog
+url: "http://www.ifi.uio.no" # the base hostname & protocol for your site
 twitter_username: jekyllrb
 github_username:  jekyll
 
@@ -22,3 +22,25 @@ markdown: kramdown
 
 gems:
 - jekyll-rdf
+
+jekyll_rdf:
+  path: "rdf-data/simpsons.ttl"
+  language: "en"
+  include_blank: true
+  render_orphaned_uris: true
+  restriction: "SELECT ?resourceUri WHERE { ?resourceUri ?p ?o}"
+  default_template: "rdf_index.html"
+  class_template_mappings:
+    "http://xmlns.com/foaf/0.1/Person": "person.html"
+    "http://pcai042.informatik.uni-leipzig.de/~dtp16/#AnotherSpecialPerson" : "person.html"
+    "http://pcai042.informatik.uni-leipzig.de/~dtp16/#ThirdSpecialPerson" : "person.html"
+    "http://pcai042.informatik.uni-leipzig.de/~dtp16/#SpecialPerson" : "person.html"
+    "http://pcai042.informatik.uni-leipzig.de/~dtp16/#SimpsonPerson" : "simpsonPerson.html"
+  instance_template_mappings:
+    "http://www.ifi.uio.no/INF3580/simpsons#Abraham" : "abraham.html"
+    "http://www.ifi.uio.no/INF3580/simpsons#Homer" : "homer.html"
+    "http://www.ifi.uio.no/INF3580/simpsons" : "family.html"
+    "http://www.ifi.uio.no/INF3580/simpson-collection#Collection" : "collectionDemo.html"
+    "http://www.ifi.uio.no/INF3580/simpson-container#Container" : "containerDemo.html"
+    "http://pcai042.informatik.uni-leipzig.de/~dtp16/#SparqlClient" : "sparqlDemo.html"
+    "http://placeholder.host.plh/placeholder#subject1" : "propertyChainingDemo.html"

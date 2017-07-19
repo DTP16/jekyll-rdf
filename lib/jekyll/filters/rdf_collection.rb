@@ -24,20 +24,17 @@
 #
 
 module Jekyll
-  module Drops
-
-    ##
-    # Represents an RDF literal to the Liquid template engine
-    #
-    class RdfLiteral < RdfTerm
-
-      ##
-      # Return a user-facing string representing this RdfLiteral
-      #
-      def literal
-        term.to_s
-      end
-
+  module RdfCollection
+    def rdf_collection(input)
+      sparql_query = input.sparql
+      query = "SELECT ?f WHERE{ #{input.term.to_ntriples} <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest>* ?r. ?r <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> ?f}"
+      results = []
+      sparql_query.query(query).each{ |solution|
+        results.push Jekyll::Drops::RdfTerm.build_term_drop(solution.f, input.sparql, input.site).add_necessities(input.site, input.page)
+      }
+      return results
     end
   end
 end
+
+Liquid::Template.register_filter(Jekyll::RdfCollection)
